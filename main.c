@@ -1,13 +1,24 @@
-#include <stdbool.h>
-#include <stdio.h>
 #include <time.h>
 #include "graphics.h"
 #include "shared.h"
 #include "vector2d.h"
 
-#define CIRCLE_POINTS 360
-#define LINES 2000
+#define USE_CIRCLE 1
+
+#if USE_CIRCLE
+#define CIRCLE_POINTS 180
+#define POINT_COUNT CIRCLE_POINTS
+#else
+#define SQUARE_SIDE_POINTS 100
+#define SQUARE_SIDES 4
+#define SQUARE_POINTS (SQUARE_SIDES * SQUARE_SIDE_POINTS)
+#define POINT_COUNT SQUARE_POINTS
+#endif
+
+#define LINES 1000
 #define LINES_INDEX_COUNT (LINES * 2)
+
+#define LOG_FREQUENCY 1000
 
 int main(int argc, char** argv)
 {
@@ -28,18 +39,33 @@ int main(int argc, char** argv)
 	float* difference_pixels = (float*)malloc(difference_buffer_size);
 
 	// Vertices of line points
+	vector2d_t line_vertices[POINT_COUNT];
+#if USE_CIRCLE
 	const float CIRCLE_RADIUS = TEXTURE_HEIGHT * 0.5f;
 	const float PI = 3.1415926f;
 	const float CENTER_X = TEXTURE_WIDTH / 2.f;
 	const float CENTER_Y = TEXTURE_HEIGHT / 2.f;
-	vector2d_t line_vertices[CIRCLE_POINTS];
-	for (size_t i = 0; i < CIRCLE_POINTS; ++i)
+	for (size_t i = 0; i < POINT_COUNT; ++i)
 	{
-		const float angle = 2.f * PI * ((float)i / CIRCLE_POINTS);
+		const float angle = 2.f * PI * ((float)i / POINT_COUNT);
 		const float x = CENTER_X + (CIRCLE_RADIUS * sinf(angle));
 		const float y = CENTER_Y + (CIRCLE_RADIUS * cosf(angle));
 		line_vertices[i] = vector2d(x, y);
 	}
+#else
+	vector2d_t* current_vertex = line_vertices;
+	for (size_t i = 0; i < SQUARE_SIDE_POINTS; ++i)
+	{
+		const float factor = ((float)i / SQUARE_SIDE_POINTS);
+		const float x = TEXTURE_WIDTH * factor;
+		const float y = TEXTURE_HEIGHT * factor;
+		*current_vertex++ = vector2d(x, 0.f);
+		*current_vertex++ = vector2d(x, TEXTURE_HEIGHT);
+		*current_vertex++ = vector2d(0.f, y);
+		*current_vertex++ = vector2d(TEXTURE_WIDTH, y);
+	}
+#endif
+
 	GLuint line_vertex_buffer;
 	glGenBuffers(1, &line_vertex_buffer);
 	glBindBuffer(GL_ARRAY_BUFFER, line_vertex_buffer);
@@ -57,8 +83,8 @@ int main(int argc, char** argv)
 
 	// Indices of line points, start with just a single line
 	GLuint line_indices[LINES_INDEX_COUNT];
-	line_indices[0] = (GLuint)(rand() % CIRCLE_POINTS);
-	line_indices[1] = (GLuint)(rand() % CIRCLE_POINTS);
+	line_indices[0] = (GLuint)(rand() % POINT_COUNT);
+	line_indices[1] = (GLuint)(rand() % POINT_COUNT);
 	GLsizei line_index_count = 2;
 
 	// Create triangle buffer
@@ -86,6 +112,8 @@ int main(int argc, char** argv)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 	
 	// Feed indices
+	GLint render_mode = 0;
+	size_t iteration = 0;
 	bool finished = false;
 	while (!finished)
 	{
@@ -97,6 +125,22 @@ int main(int argc, char** argv)
 				finished = true;
 				break;
 			}
+			else if (event.type == SDL_KEYDOWN)
+			{
+				switch (event.key.keysym.sym)
+				{
+					case SDLK_UP:
+						++render_mode;
+						break;
+
+					case SDLK_DOWN:
+						--render_mode;
+						break;
+
+					default:
+						break;
+				}
+			}
 		}
 
 		// Tweak randomly
@@ -107,7 +151,7 @@ int main(int argc, char** argv)
 			{
 				// Randomly change an index
 				const size_t random_index = (size_t)(rand() % line_index_count);
-				const GLuint new_value = (GLuint)(rand() % CIRCLE_POINTS);
+				const GLuint new_value = (GLuint)(rand() % POINT_COUNT);
 				line_indices[random_index] = new_value;
 				break;
 			}
@@ -118,7 +162,7 @@ int main(int argc, char** argv)
 				if (line_index_count < LINES_INDEX_COUNT)
 				{
 					// Shift all to the right
-					GLuint copy_value = (GLuint)(rand() % CIRCLE_POINTS);
+					GLuint copy_value = (GLuint)(rand() % POINT_COUNT);
 					const size_t insert_before = (size_t)(rand() % (line_index_count + 1));
 					for (GLsizei i = insert_before; i < line_index_count + 1; ++i)
 					{
@@ -211,6 +255,7 @@ int main(int argc, char** argv)
 
 		// Draw the quad
 		set_mode(&graphics_context.texture_material, 0);
+		set_sample_radius(&graphics_context.texture_material, 1.f / TEXTURE_WIDTH);
 		GLsizei index_count = sizeof(indices) / sizeof(GLuint);
 		glDrawElements
 		(
@@ -236,7 +281,7 @@ int main(int argc, char** argv)
 			best_line_index_count = line_index_count;
 
 			// Draw the lines
-			set_mode(&graphics_context.texture_material, 1);
+			set_mode(&graphics_context.texture_material, render_mode);
 			glDrawElements
 			(
 				GL_TRIANGLES,
@@ -252,6 +297,12 @@ int main(int argc, char** argv)
 			memcpy(line_indices, best_line_indices, best_line_index_count * sizeof(GLuint));
 			line_index_count = best_line_index_count;
 		}
+
+		if ((iteration % LOG_FREQUENCY)	== 0)
+		{
+			printf("Iteration %d has score %f with %d lines.\n", (int)iteration, minimum_difference_sum, (int)line_index_count);
+		}
+		++iteration;
 	}
 	
 	// Shutdown

@@ -12,6 +12,7 @@
 #define LINE_TEXTURE_SAMPLER_NAME "line_texture"
 #define IMAGE_TEXTURE_SAMPLER_NAME "image_texture"
 #define MODE_NAME "mode"
+#define SAMPLE_RADIUS_NAME "sample_radius"
 
 material_t null_material()
 {
@@ -288,8 +289,9 @@ bool set_texture(material_t* material, GLuint line_texture, GLuint image_texture
 	glBindTexture(GL_TEXTURE_2D, line_texture);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glGenerateMipmap(GL_TEXTURE_2D);
 	glUniform1i(line_location, 0);
 
 	// Bind image texture to index 1
@@ -316,3 +318,17 @@ bool set_mode(material_t* material, GLint mode)
 	glUniform1i(mode_location, mode);
 	return true;
 }
+
+bool set_sample_radius(material_t* material, GLfloat radius)
+{
+	const GLint radius_location = glGetUniformLocation(material->program, SAMPLE_RADIUS_NAME);
+	if (radius_location == INVALID_LOCATION)
+	{
+		printf("Failed to find uniform '%s'.\n", SAMPLE_RADIUS_NAME);
+		return false;
+	}
+
+	glUniform1f(radius_location, radius);
+	return true;
+}
+

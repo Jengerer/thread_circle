@@ -37,3 +37,5 @@ bool activate_material(material_t* material, material_type_t type);
 bool set_projection(material_t* material, int width, int height);
 bool set_texture(material_t* material, GLuint line_texture, GLuint image_texture);
 bool set_mode(material_t* material, GLint mode);
+bool set_sample_radius(material_t* material, GLfloat radius);
+

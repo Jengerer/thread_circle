@@ -122,6 +122,7 @@ bool initialize_graphics(graphics_context_t* out)
 	glClearColor(1.f, 1.f, 1.f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glEnable(GL_LINE_SMOOTH);
+	glLineWidth(1.f);
 	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

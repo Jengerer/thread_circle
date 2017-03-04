@@ -8,24 +8,43 @@ out vec4 colour;
 uniform sampler2D line_texture;
 uniform sampler2D image_texture;
 uniform int mode;
+uniform float sample_radius;
 
 void main(void)
 {
+	// Sample pixels around line texture
+	int samples = 16;
+	int pixel_weight = 8;
+	float line_texture_colour = texture(line_texture, out_uv).x;
+	float line_colour = float(pixel_weight) * line_texture_colour;
+	int total_samples = samples + pixel_weight;
+	float pi = 3.14159265f;
+	for (int i = 0; i < samples; ++i)
+	{
+		float theta = 2.f * pi * (float(i) / float(samples));
+		float x = out_uv.x + sample_radius * sin(theta);
+		float y = out_uv.y + sample_radius * cos(theta);
+		vec2 sample_uv = vec2(x, y);
+		line_colour += texture(line_texture, sample_uv).x;
+	}
+	line_colour *= (1.f / float(total_samples));
+
 	if (mode == 0)
 	{
-		float line_colour = texture(line_texture, out_uv).x;
 		float image_colour = texture(image_texture, out_uv).x;
 		float difference = line_colour - image_colour;
 		if (difference < 0.f)
 		{
-			difference = pow(-difference, 4.f);
+			difference = pow(-difference, 2.f);
 		}
-		colour = vec4(difference, difference, difference, 1.f);
+		colour = vec4(vec3(difference), 1.f);
+	}
+	else if (mode == 1)
+	{
+		colour = vec4(vec3(line_colour), 1.f);
 	}
 	else
 	{
-		// colour = vec4(texture(image_texture, out_uv).xyz * 0.1f, 1.f);
-		colour = texture(line_texture, out_uv);
-		// colour = min(colour, 1.f);
+		colour = vec4(vec3(line_texture_colour), 1.f);
 	}
 }
