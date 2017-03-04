@@ -12,9 +12,8 @@ file_buffer_t null_file_buffer(void)
 
 bool read_file(const char* filename, file_buffer_t* out)
 {
-	FILE* file;
-	const errno_t error = fopen_s(&file, filename, "r");
-	if (error)
+	FILE* file = fopen(filename, "r");
+	if (file == NULL)
 	{
 		printf("Failed to open file %s for read.\n", filename);
 		return false;
@@ -47,7 +46,7 @@ bool read_file(const char* filename, file_buffer_t* out)
 	}
 	const size_t element_count = 1;
 	const size_t element_size = length;
-	const size_t read = fread_s(buffer, buffer_size, element_size, element_count, file);
+	const size_t read = fread(buffer, element_size, element_count, file);
 	fclose(file);
 	if (read != element_count)
 	{

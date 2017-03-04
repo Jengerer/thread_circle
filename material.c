@@ -136,9 +136,9 @@ bool set_texture_shader_parameters(material_t* material)
 	}
 
 	const GLsizei position_size = sizeof(vector2d_t);
-	const GLsizei position_offset = 0;
+	const size_t position_offset = 0;
 	const GLsizei uv_size = sizeof(vector2d_t);
-	const GLsizei uv_offset = position_size;
+	const size_t uv_offset = (size_t)position_size;
 	const GLsizei vertex_size = position_size + uv_size;
 	const GLint position_floats = (GLint)(position_size / sizeof(float));
 	const GLint uv_floats = (GLint)(position_size / sizeof(float));

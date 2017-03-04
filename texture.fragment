@@ -1,4 +1,4 @@
-#version 330 core
+#version 130
 
 // Attributes
 in vec2 out_uv;

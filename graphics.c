@@ -99,7 +99,6 @@ bool initialize_graphics(graphics_context_t* out)
 	SDL_GLContext gl_context = SDL_GL_CreateContext(window);
 	if (!gl_context)
 	{
-		destroy_graphics(out);
 		printf("Failed to create OpenGL context.\n");
 		return false;
 	}
@@ -130,7 +129,6 @@ bool initialize_graphics(graphics_context_t* out)
 	// Load the target texture file
 	if (!load_texture_image(out))
 	{
-		destroy_graphics(out);
 		printf("Failed to load texture image!\n");
 		return false;
 	}
@@ -138,22 +136,14 @@ bool initialize_graphics(graphics_context_t* out)
 	// Create the shaders
 	if (!create_material(LINE_VERTEX_SHADER, LINE_FRAGMENT_SHADER, &out->line_material))
 	{
-		destroy_graphics(out);
 		printf("Failed to create line material.\n");
 		return false;
 	}
 	else if (!create_material(TEXTURE_VERTEX_SHADER, TEXTURE_FRAGMENT_SHADER, &out->texture_material))
 	{
-		destroy_graphics(out);
 		printf("Failed to create texture material.\n");
 		return false;
 	}
-
-	// Create render target
-	GLuint frame_buffer;
-	glGenFramebuffers(RENDER_TARGET_COUNT, &frame_buffer);
-	glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
-	out->frame_buffer = frame_buffer;
 
 	// Create texture
 	GLuint texture_target;
@@ -161,17 +151,77 @@ bool initialize_graphics(graphics_context_t* out)
 	glGenTextures(RENDER_TARGET_COUNT, &texture_target);
 	glBindTexture(GL_TEXTURE_2D, texture_target);
 	glTexImage2D(GL_TEXTURE_2D, detail_level, GL_LUMINANCE, TEXTURE_WIDTH, TEXTURE_HEIGHT, 0, GL_RGB, GL_FLOAT, NULL);
+	const GLenum createTextureError = glGetError();
+	if (createTextureError != GL_NO_ERROR)
+	{
+		printf("Failed to create and fill texture.\n");
+		return false;
+	}
 	out->texture_target = texture_target;
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	// Create render target
+	GLuint frame_buffer = 0;
+	glGenFramebuffers(RENDER_TARGET_COUNT, &frame_buffer);
+	glBindFramebuffer(GL_FRAMEBUFFER, frame_buffer);
+	out->frame_buffer = frame_buffer;
 
 	// Bind texture to frame buffer
-	glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texture_target, detail_level);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture_target, detail_level);
+	const GLenum frameBufferTextureError = glGetError();
+	if (frameBufferTextureError != GL_NO_ERROR)
+	{
+		printf("Failed to bind texture to framebuffer: %d (0x%x)\n", frameBufferTextureError, frameBufferTextureError);
+		return false;
+	}
+
 	GLenum drawBuffers = GL_COLOR_ATTACHMENT0;
 	glDrawBuffers(RENDER_TARGET_COUNT, &drawBuffers);
 	glViewport(0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
 
 	// Check that all's good
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
+	const GLenum frameBufferStatus = glCheckFramebufferStatus(GL_FRAMEBUFFER);
+	if (frameBufferStatus != GL_FRAMEBUFFER_COMPLETE)
 	{
+		switch (frameBufferStatus)
+		{
+			case GL_FRAMEBUFFER_UNDEFINED:
+				printf("Framebuffer undefined!\n");
+				break;
+
+			case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
+				printf("Framebuffer incomplete attachment!\n");
+				break;
+
+			case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
+				printf("Framebuffer incomplete missing attachment!\n");
+				break;
+
+			case GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER:
+				printf("Framebuffer incomplete draw buffer!\n");
+				break;
+
+			case GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER:
+				printf("Framebuffer incomplete read buffer!\n");
+				break;
+
+			case GL_FRAMEBUFFER_UNSUPPORTED:
+				printf("Framebuffer unsupported!\n");
+				break;
+
+			case GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE:
+				printf("Framebuffer incomplete multisample!\n");
+				break;
+
+			case GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS:
+				printf("Framebuffer incomplete layer targets!\n");
+				break;
+
+			default:
+				printf("Framebuffer error unknown!\n");
+				break;
+		}
+
 		return false;
 	}
 

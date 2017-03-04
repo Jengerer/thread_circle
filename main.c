@@ -9,7 +9,7 @@
 #define LINES 2000
 #define LINES_INDEX_COUNT (LINES * 2)
 
-int SDL_main(int argc, char** argv)
+int main(int argc, char** argv)
 {
 	const unsigned int seed = (unsigned int)(time(NULL));
 	srand(seed);
@@ -17,8 +17,8 @@ int SDL_main(int argc, char** argv)
 	graphics_context_t graphics_context = null_graphics_context();
 	if (!initialize_graphics(&graphics_context))
 	{
-		system("pause");
 		destroy_graphics(&graphics_context);
+		pause();
 		return -1;
 	}
 
@@ -87,7 +87,7 @@ int SDL_main(int argc, char** argv)
 	
 	// Feed indices
 	bool finished = false;
-	while (true)
+	while (!finished)
 	{
 		SDL_Event event;
 		while (SDL_PollEvent(&event))
@@ -165,7 +165,7 @@ int SDL_main(int argc, char** argv)
 		}
 		if (!set_projection(&graphics_context.line_material, TEXTURE_WIDTH, TEXTURE_HEIGHT))
 		{
-			system("pause");
+			pause();
 			destroy_graphics(&graphics_context);
 			return -1;
 		}
@@ -197,14 +197,14 @@ int SDL_main(int argc, char** argv)
 		if (!activate_material(&graphics_context.texture_material, TEXTURE_MATERIAL))
 		{
 			printf("Failed to activate texture material!\n");
-			system("pause");
 			destroy_graphics(&graphics_context);
+			pause();
 			return -1;
 		}
 
 		if (!set_texture(&graphics_context.texture_material, graphics_context.texture_target, graphics_context.texture_image))
 		{
-			system("pause");
+			pause();
 			destroy_graphics(&graphics_context);
 			return -1;
 		}
@@ -255,7 +255,6 @@ int SDL_main(int argc, char** argv)
 	}
 	
 	// Shutdown
-	system("pause");
 	destroy_graphics(&graphics_context);
 	return 0;
 }
