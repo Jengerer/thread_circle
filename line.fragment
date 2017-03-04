@@ -1,0 +1,9 @@
+#version 330 core
+
+// Attributes
+out vec4 colour;
+
+void main(void)
+{
+	colour = vec4(0.f, 0.f, 0.f, 0.4f);
+}

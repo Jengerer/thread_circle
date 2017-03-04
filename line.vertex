@@ -1,0 +1,13 @@
+#version 330 core
+
+// Attributes
+in vec2 in_position;
+
+// Projection matrix
+uniform mat3 projection;
+
+void main(void)
+{
+	vec3 projected_position = projection * vec3(in_position, 1.f);
+	gl_Position = vec4(projected_position.xy, 0.f, 1.f);
+}

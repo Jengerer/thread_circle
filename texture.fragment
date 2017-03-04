@@ -1,0 +1,31 @@
+#version 330 core
+
+// Attributes
+in vec2 out_uv;
+out vec4 colour;
+
+// Texture uniform
+uniform sampler2D line_texture;
+uniform sampler2D image_texture;
+uniform int mode;
+
+void main(void)
+{
+	if (mode == 0)
+	{
+		float line_colour = texture(line_texture, out_uv).x;
+		float image_colour = texture(image_texture, out_uv).x;
+		float difference = line_colour - image_colour;
+		if (difference < 0.f)
+		{
+			difference = pow(-difference, 4.f);
+		}
+		colour = vec4(difference, difference, difference, 1.f);
+	}
+	else
+	{
+		// colour = vec4(texture(image_texture, out_uv).xyz * 0.1f, 1.f);
+		colour = texture(line_texture, out_uv);
+		// colour = min(colour, 1.f);
+	}
+}
