@@ -6,8 +6,8 @@
 
 #define SAMPLE_RADIUS 2
 #define LOG_FREQUENCY 1000
-#define FITTEST_COUNT 1
-#define OFFSPRING_PER_FITTEST 1
+#define FITTEST_COUNT 5
+#define OFFSPRING_PER_FITTEST 5
 #define CANDIDATE_COUNT (FITTEST_COUNT + (FITTEST_COUNT * OFFSPRING_PER_FITTEST))
 
 int main(int argc, char** argv)
@@ -99,7 +99,6 @@ int main(int argc, char** argv)
 	
 	// Feed indices
 	GLint render_mode = 0;
-	size_t generation = 0;
 	bool finished = false;
 	while (!finished)
 	{
@@ -207,7 +206,6 @@ int main(int argc, char** argv)
 			}
 
 			GLsizei quad_index_count = sizeof(indices) / sizeof(GLuint);
-			glClear(GL_COLOR_BUFFER_BIT);
 			glDrawElements
 			(
 				GL_TRIANGLES,
@@ -224,12 +222,16 @@ int main(int argc, char** argv)
 				sum += difference_pixels[j];
 			}
 			candidate->score = sum;
-			printf("%d had a score of %f\n", (int)i, sum);
 
-			// Draw the current best
-			// if (i == 1)
+			// Draw best
+			if (i == 0)
 			{
-				/*set_mode(&graphics_context.texture_material, render_mode);
+				if (!set_mode(&graphics_context.texture_material, render_mode))
+				{
+					destroy_graphics(&graphics_context);
+					pause();
+					return -1;
+				}
 				glDrawElements
 				(
 					GL_TRIANGLES,
@@ -237,11 +239,7 @@ int main(int argc, char** argv)
 					GL_UNSIGNED_INT,
 					NULL
 				);
-				*/
-				printf("NOW %d\n", (int)i);
-				pause();
 				SDL_GL_SwapWindow(graphics_context.window);
-				pause();
 			}
 		}
 
@@ -249,41 +247,23 @@ int main(int argc, char** argv)
 		qsort(&candidates, CANDIDATE_COUNT, sizeof(generation_t), &compare_generations);
 
 		// Generate off-spring for the best ones
-		printf("On generation #%d, the fittest are:\n", (int)++generation);
 		generation_t* current_offspring = &candidates[FITTEST_COUNT];
 		for (size_t i = 0; i < FITTEST_COUNT; ++i)
 		{
 			const generation_t* fittest = &candidates[i];
-			printf("Fittest: ");
-			for (size_t j = 0; j < fittest->index_count; ++j)
-			{
-				if (j != 0)
-				{
-					printf(", ");
-				}
-				printf("%u", fittest->indices[j]);
-			}
-			printf("\n");
-
-			printf("#%d has score %f with %d lines...\n", (int)i + 1, fittest->score, (int)fittest->index_count);
 			for (size_t j = 0; j < OFFSPRING_PER_FITTEST; ++j, ++current_offspring)
 			{
 				mutate_generation(fittest, current_offspring);
-				for (size_t k = 0; k < current_offspring->index_count; ++k)
-				{
-					if (k != 0)
-					{
-						printf(", ");
-					}
-					printf("%u", current_offspring->indices[k]);
-				}
 			}
-			printf("\n");
 		}
-		printf("\n");
 	}
 	
 	// Shutdown
+	for (size_t i = 0; i < CANDIDATE_COUNT; ++i)
+	{
+		generation_t* candidate = &candidates[i];
+		destroy_generation(candidate);
+	}
 	destroy_graphics(&graphics_context);
 	return 0;
 }

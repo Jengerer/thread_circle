@@ -1,4 +1,5 @@
 #include "generation.h"
+#include <assert.h>
 #include <float.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,7 +30,7 @@ generation_t create_generation(void)
 	return result;
 }
 
-void destroy_genreation(generation_t* generation)
+void destroy_generation(generation_t* generation)
 {
 	GLuint* indices = generation->indices;
 	if (indices != NULL)
@@ -57,25 +58,24 @@ void mutate_generation(const generation_t* source, generation_t* destination)
 			const size_t random_index = (size_t)(rand() % index_count);
 			const GLuint new_value = (GLuint)(rand() % POINT_COUNT);
 			indices[random_index] = new_value;
-			printf("Changed index %d to %u\n", (int)random_index, new_value);
+			assert(indices[random_index] < POINT_COUNT);
 			break;
 		}
 
 		case ADD_INDEX:
 		{
 			// Add a new index at a random spot
-			printf("Adding...\n");
 			if (index_count < LINES_INDEX_COUNT)
 			{
 				// Shift all to the right
 				const GLuint new_index = (GLuint)(rand() % POINT_COUNT);
 				const size_t insert_before = (size_t)(rand() % (index_count + 1));
-				printf("Added %u at index %d\n", new_index, (int)insert_before);
 				GLuint copy_value = new_index;
 				for (GLsizei i = insert_before; i < index_count + 1; ++i)
 				{
 					GLuint saved = indices[i];
 					indices[i] = copy_value;
+					assert(indices[i] < POINT_COUNT);
 					copy_value = saved;
 				}
 				destination->index_count = index_count + 1;
@@ -86,15 +86,14 @@ void mutate_generation(const generation_t* source, generation_t* destination)
 		case REMOVE_INDEX:
 		{
 			// Remove an index at random
-			printf("Removing...\n");
 			if (index_count > 2)
 			{
 				// Shift all to the left after
 				const size_t removed_index = (size_t)(rand() % index_count);
-				printf("Removed index %d\n", (int)removed_index);
 				for (GLsizei i = removed_index + 1; i < index_count; ++i)
 				{
 					indices[i - 1] = indices[i];
+					assert(indices[i - 1] < POINT_COUNT);
 				}
 
 				destination->index_count = index_count - 1;
@@ -106,7 +105,7 @@ void mutate_generation(const generation_t* source, generation_t* destination)
 
 void copy_generation(const generation_t* source, generation_t* destination)
 {
-	const size_t buffer_size = POINT_COUNT * sizeof(GLuint);
+	const size_t buffer_size = source->index_count * sizeof(GLuint);
 	memcpy(destination->indices, source->indices, buffer_size);
 	destination->index_count = source->index_count;
 	destination->score = source->score;
