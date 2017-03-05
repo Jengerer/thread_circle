@@ -11,6 +11,9 @@
 #define TEXTURE_FRAGMENT_SHADER "texture.fragment"
 #define TEXTURE_IMAGE_FILENAME "texture.png"
 
+// Don't add alpha
+#define MAXIMUM_SUM_BYTES 3
+
 graphics_context_t null_graphics_context()
 {
 	graphics_context_t result;
@@ -45,16 +48,21 @@ bool load_texture_image(graphics_context_t* context)
 	const float maximum_value = 255.f;
 	const SDL_PixelFormat* format = surface->format;
 	const size_t bytes_per_pixel = (size_t)format->BytesPerPixel;
-	const float average_denominator = (float)bytes_per_pixel;
+	const size_t sum_bytes = (bytes_per_pixel < MAXIMUM_SUM_BYTES ? bytes_per_pixel : MAXIMUM_SUM_BYTES);
+	const float average_denominator = (float)sum_bytes;
 	const uint8_t* pixels = (const uint8_t*)surface->pixels;
 	const uint8_t* current = pixels;
+	printf("Image contains %d bytes per pixel...\n", (int)bytes_per_pixel);
 	for (size_t i = 0; i < texture_pixel_count; ++i)
 	{
 		float sum = 0.f;
-		for (size_t j = 0; j < bytes_per_pixel; ++j, ++current)
+
+		// Only add RGB, skip bytes after
+		for (size_t j = 0; j < sum_bytes; ++j, ++current)
 		{
 			sum += ((float)*current) / maximum_value;
 		}
+		for (size_t j = sum_bytes; j < bytes_per_pixel; ++j, ++current);
 
 		*current_texture_pixel++ = sum / average_denominator;
 	}
@@ -122,7 +130,7 @@ bool initialize_graphics(graphics_context_t* out)
 	glClearColor(1.f, 1.f, 1.f, 1.f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glEnable(GL_LINE_SMOOTH);
-	glLineWidth(2.f);
+	glLineWidth(LINE_WIDTH);
 	glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

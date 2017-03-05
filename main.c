@@ -5,13 +5,6 @@
 #include <assert.h>
 #include <time.h>
 
-#define SAMPLE_RADIUS 4
-#define LOG_FREQUENCY 1000
-#define FITTEST_COUNT 5
-#define OFFSPRING_PER_FITTEST 5
-#define CANDIDATE_COUNT (FITTEST_COUNT + (FITTEST_COUNT * OFFSPRING_PER_FITTEST))
-#define LAST_CANDIDATE (CANDIDATE_COUNT - 1)
-
 int main(int argc, char** argv)
 {
 	const unsigned int seed = (unsigned int)(time(NULL));
@@ -95,6 +88,7 @@ int main(int argc, char** argv)
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 	
 	// Feed indices
+	int generation = 0;
 	GLint render_mode = 0;
 	bool finished = false;
 	while (!finished)
@@ -123,6 +117,18 @@ int main(int argc, char** argv)
 						break;
 				}
 			}
+		}
+
+		if ((generation % LOG_FREQUENCY) == 0)
+		{
+			++generation;
+			printf("Generation #%d:\n", generation);
+			for (size_t i = 0; i < FITTEST_COUNT; ++i)
+			{
+				const generation_t* candidate = &candidates[i];
+				printf("#%d: Score = %f, Lines = %d\n", (int)i + 1, candidate->score, (int)candidate->index_count);
+			}
+			printf("\n");
 		}
 
 		for (size_t i = 0; i < CANDIDATE_COUNT; ++i)
