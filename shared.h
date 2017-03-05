@@ -6,5 +6,21 @@
 #define TEXTURE_WIDTH (APPLICATION_WIDTH * SCALE_FACTOR)
 #define TEXTURE_HEIGHT (APPLICATION_HEIGHT * SCALE_FACTOR)
 
+// Shape definitions
+#define USE_CIRCLE 1
+#if USE_CIRCLE
+	#define CIRCLE_POINTS 180
+	#define POINT_COUNT CIRCLE_POINTS
+#else
+	#define SQUARE_SIDE_POINTS 100
+	#define SQUARE_SIDES 4
+	#define SQUARE_POINTS (SQUARE_SIDES * SQUARE_SIDE_POINTS)
+	#define POINT_COUNT SQUARE_POINTS
+#endif
+
+// Maximum number of lines per generation
+#define LINES 1000
+#define LINES_INDEX_COUNT (LINES * 2)
+
 void pause(void);
 

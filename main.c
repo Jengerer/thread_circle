@@ -1,25 +1,14 @@
 #include <time.h>
+#include "generation.h"
 #include "graphics.h"
 #include "shared.h"
 #include "vector2d.h"
 
-#define USE_CIRCLE 1
-
-#if USE_CIRCLE
-#define CIRCLE_POINTS 180
-#define POINT_COUNT CIRCLE_POINTS
-#else
-#define SQUARE_SIDE_POINTS 100
-#define SQUARE_SIDES 4
-#define SQUARE_POINTS (SQUARE_SIDES * SQUARE_SIDE_POINTS)
-#define POINT_COUNT SQUARE_POINTS
-#endif
-
-#define LINES 1000
-#define LINES_INDEX_COUNT (LINES * 2)
-
-#define SAMPLE_RADIUS 10
+#define SAMPLE_RADIUS 2
 #define LOG_FREQUENCY 1000
+#define FITTEST_COUNT 1
+#define OFFSPRING_PER_FITTEST 1
+#define CANDIDATE_COUNT (FITTEST_COUNT + (FITTEST_COUNT * OFFSPRING_PER_FITTEST))
 
 int main(int argc, char** argv)
 {
@@ -77,16 +66,12 @@ int main(int argc, char** argv)
 	glGenBuffers(1, &line_index_buffer);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, line_index_buffer);
 
-	// Keep track of best
-	float minimum_difference_sum = 10e30f;
-	GLuint best_line_indices[LINES_INDEX_COUNT];
-	GLsizei best_line_index_count = 2;
-
-	// Indices of line points, start with just a single line
-	GLuint line_indices[LINES_INDEX_COUNT];
-	line_indices[0] = (GLuint)(rand() % POINT_COUNT);
-	line_indices[1] = (GLuint)(rand() % POINT_COUNT);
-	GLsizei line_index_count = 2;
+	// Candidates with line points
+	generation_t candidates[CANDIDATE_COUNT];
+	for (size_t i = 0; i < CANDIDATE_COUNT; ++i)
+	{
+		candidates[i] = create_generation();
+	}
 
 	// Create triangle buffer
 	const vector2d_t vertices[] =
@@ -114,7 +99,7 @@ int main(int argc, char** argv)
 	
 	// Feed indices
 	GLint render_mode = 0;
-	size_t iteration = 0;
+	size_t generation = 0;
 	bool finished = false;
 	while (!finished)
 	{
@@ -144,165 +129,158 @@ int main(int argc, char** argv)
 			}
 		}
 
-		// Tweak randomly
-		const int modification = rand() % 3;
-		switch (modification)
+		for (size_t i = 0; i < CANDIDATE_COUNT; ++i)
 		{
-			case 0:
+			generation_t* candidate = &candidates[i];
+			const size_t line_index_count = candidate->index_count;
+			const GLuint* line_indices = candidate->indices;
+			const GLsizei line_indices_size = line_index_count * sizeof(GLuint);
+			glBindBuffer(GL_ARRAY_BUFFER, line_vertex_buffer);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, line_index_buffer);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, line_indices_size, line_indices, GL_DYNAMIC_DRAW);
+
+			// Set parameters
+			if (!activate_material(&graphics_context.line_material, LINE_MATERIAL))
 			{
-				// Randomly change an index
-				const size_t random_index = (size_t)(rand() % line_index_count);
-				const GLuint new_value = (GLuint)(rand() % POINT_COUNT);
-				line_indices[random_index] = new_value;
-				break;
+				printf("Failed to activate line material.\n");
+				destroy_graphics(&graphics_context);
+				return -1;
+			}
+			if (!set_projection(&graphics_context.line_material, TEXTURE_WIDTH, TEXTURE_HEIGHT))
+			{
+				pause();
+				destroy_graphics(&graphics_context);
+				return -1;
 			}
 
-			case 1:
-			{
-				// Add a new index at a random spot
-				if (line_index_count < LINES_INDEX_COUNT)
-				{
-					// Shift all to the right
-					GLuint copy_value = (GLuint)(rand() % POINT_COUNT);
-					const size_t insert_before = (size_t)(rand() % (line_index_count + 1));
-					for (GLsizei i = insert_before; i < line_index_count + 1; ++i)
-					{
-						GLuint saved = line_indices[i];
-						line_indices[i] = copy_value;
-						copy_value = saved;
-					}
+			// Draw to texture first
+			glBindFramebuffer(GL_FRAMEBUFFER, graphics_context.frame_buffer);
+			glViewport(0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
+			glClear(GL_COLOR_BUFFER_BIT);
 
-					++line_index_count;
-				}
-				break;
-			}
-
-			case 2:
-			{
-				// Remove an index at random
-				if (line_index_count > 2)
-				{
-					// Shift all to the left after
-					const size_t removed_index = (size_t)(rand() % line_index_count);
-					for (GLsizei i = removed_index + 1; i < line_index_count; ++i)
-					{
-						line_indices[i - 1] = line_indices[i];
-					}
-
-					--line_index_count;
-				}
-				break;
-			}
-		}
-
-		// Copy new indices
-		const GLsizei line_indices_size = line_index_count * sizeof(GLuint);
-		glBindBuffer(GL_ARRAY_BUFFER, line_vertex_buffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, line_index_buffer);
-		glBufferData(GL_ELEMENT_ARRAY_BUFFER, line_indices_size, line_indices, GL_DYNAMIC_DRAW);
-
-		// Set parameters
-		if (!activate_material(&graphics_context.line_material, LINE_MATERIAL))
-		{
-			printf("Failed to activate line material.\n");
-			destroy_graphics(&graphics_context);
-			return -1;
-		}
-		if (!set_projection(&graphics_context.line_material, TEXTURE_WIDTH, TEXTURE_HEIGHT))
-		{
-			pause();
-			destroy_graphics(&graphics_context);
-			return -1;
-		}
-
-		// Draw to texture first
-		glBindFramebuffer(GL_FRAMEBUFFER, graphics_context.frame_buffer);
-		glViewport(0, 0, TEXTURE_WIDTH, TEXTURE_HEIGHT);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		glBindBuffer(GL_ARRAY_BUFFER, line_vertex_buffer);
-		glDrawElements
-		(
-			GL_LINE_STRIP,
-			line_index_count,
-			GL_UNSIGNED_INT,
-			NULL
-		);
-
-		// Set main buffer back
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
-		glViewport(0, 0, APPLICATION_WIDTH, APPLICATION_HEIGHT);
-
-		// Bind vertex and index buffer back
-		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
-
-		// Now draw that texture on screen
-		if (!activate_material(&graphics_context.texture_material, TEXTURE_MATERIAL))
-		{
-			printf("Failed to activate texture material!\n");
-			destroy_graphics(&graphics_context);
-			pause();
-			return -1;
-		}
-
-		if (!set_texture(&graphics_context.texture_material, graphics_context.texture_target, graphics_context.texture_image))
-		{
-			pause();
-			destroy_graphics(&graphics_context);
-			return -1;
-		}
-
-		// Draw the quad
-		set_mode(&graphics_context.texture_material, 0);
-		set_sample_radius(&graphics_context.texture_material, (float)SAMPLE_RADIUS / (float)TEXTURE_WIDTH);
-		GLsizei index_count = sizeof(indices) / sizeof(GLuint);
-		glDrawElements
-		(
-			GL_TRIANGLES,
-			index_count,
-			GL_UNSIGNED_INT,
-			NULL
-		);
-
-		// Now calculate difference sum
-		GLfloat sum = 0.f;
-		glReadPixels(0, 0, APPLICATION_WIDTH, APPLICATION_HEIGHT, GL_RED, GL_FLOAT, difference_pixels);
-		for (size_t i = 0; i < difference_pixel_count; ++i)
-		{
-			sum += difference_pixels[i];
-		}
-
-		// Compare and copy if better
-		if ((sum < minimum_difference_sum) || ((modification == 2) && (sum == minimum_difference_sum)))
-		{
-			minimum_difference_sum = sum;
-			memcpy(best_line_indices, line_indices, line_indices_size);
-			best_line_index_count = line_index_count;
-
-			// Draw the lines
-			set_mode(&graphics_context.texture_material, render_mode);
+			// Draw the quad
 			glDrawElements
 			(
-				GL_TRIANGLES,
-				index_count,
+				GL_LINE_STRIP,
+				line_index_count,
 				GL_UNSIGNED_INT,
 				NULL
 			);
-			SDL_GL_SwapWindow(graphics_context.window);
-		}
-		else
-		{
-			// Revert, this one's worse
-			memcpy(line_indices, best_line_indices, best_line_index_count * sizeof(GLuint));
-			line_index_count = best_line_index_count;
+
+			// Set main buffer back
+			glBindFramebuffer(GL_FRAMEBUFFER, 0);
+			glViewport(0, 0, APPLICATION_WIDTH, APPLICATION_HEIGHT);
+
+			// Bind vertex and index buffer back
+			glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer);
+
+			// Now draw that texture on screen
+			if (!activate_material(&graphics_context.texture_material, TEXTURE_MATERIAL))
+			{
+				printf("Failed to activate texture material!\n");
+				destroy_graphics(&graphics_context);
+				pause();
+				return -1;
+			}
+
+			if (!set_texture(&graphics_context.texture_material, graphics_context.texture_target, graphics_context.texture_image))
+			{
+				pause();
+				destroy_graphics(&graphics_context);
+				return -1;
+			}
+
+			// Draw the quad
+			if (!set_mode(&graphics_context.texture_material, 0))
+			{
+				destroy_graphics(&graphics_context);
+				pause();
+				return -1;
+			}
+
+			if (!set_sample_radius(&graphics_context.texture_material, (float)SAMPLE_RADIUS / (float)TEXTURE_WIDTH))
+			{
+				destroy_graphics(&graphics_context);
+				pause();
+				return -1;
+			}
+
+			GLsizei quad_index_count = sizeof(indices) / sizeof(GLuint);
+			glClear(GL_COLOR_BUFFER_BIT);
+			glDrawElements
+			(
+				GL_TRIANGLES,
+				quad_index_count,
+				GL_UNSIGNED_INT,
+				NULL
+			);
+
+			// Now calculate difference sum
+			GLfloat sum = 0.f;
+			glReadPixels(0, 0, APPLICATION_WIDTH, APPLICATION_HEIGHT, GL_RED, GL_FLOAT, difference_pixels);
+			for (size_t j = 0; j < difference_pixel_count; ++j)
+			{
+				sum += difference_pixels[j];
+			}
+			candidate->score = sum;
+			printf("%d had a score of %f\n", (int)i, sum);
+
+			// Draw the current best
+			// if (i == 1)
+			{
+				/*set_mode(&graphics_context.texture_material, render_mode);
+				glDrawElements
+				(
+					GL_TRIANGLES,
+					quad_index_count,
+					GL_UNSIGNED_INT,
+					NULL
+				);
+				*/
+				printf("NOW %d\n", (int)i);
+				pause();
+				SDL_GL_SwapWindow(graphics_context.window);
+				pause();
+			}
 		}
 
-		if ((iteration % LOG_FREQUENCY)	== 0)
+		// Now sort the candidates by score
+		qsort(&candidates, CANDIDATE_COUNT, sizeof(generation_t), &compare_generations);
+
+		// Generate off-spring for the best ones
+		printf("On generation #%d, the fittest are:\n", (int)++generation);
+		generation_t* current_offspring = &candidates[FITTEST_COUNT];
+		for (size_t i = 0; i < FITTEST_COUNT; ++i)
 		{
-			printf("Iteration %d has score %f with %d lines.\n", (int)iteration, minimum_difference_sum, (int)line_index_count);
+			const generation_t* fittest = &candidates[i];
+			printf("Fittest: ");
+			for (size_t j = 0; j < fittest->index_count; ++j)
+			{
+				if (j != 0)
+				{
+					printf(", ");
+				}
+				printf("%u", fittest->indices[j]);
+			}
+			printf("\n");
+
+			printf("#%d has score %f with %d lines...\n", (int)i + 1, fittest->score, (int)fittest->index_count);
+			for (size_t j = 0; j < OFFSPRING_PER_FITTEST; ++j, ++current_offspring)
+			{
+				mutate_generation(fittest, current_offspring);
+				for (size_t k = 0; k < current_offspring->index_count; ++k)
+				{
+					if (k != 0)
+					{
+						printf(", ");
+					}
+					printf("%u", current_offspring->indices[k]);
+				}
+			}
+			printf("\n");
 		}
-		++iteration;
+		printf("\n");
 	}
 	
 	// Shutdown

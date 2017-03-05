@@ -12,7 +12,7 @@ uniform float sample_radius;
 
 void main(void)
 {
-	// Sample pixels around line texture
+	// Sample pixels around line texture pixel
 	int samples = 16;
 	int pixel_weight = 8;
 	float line_texture_colour = texture(line_texture, out_uv).x;
@@ -29,10 +29,13 @@ void main(void)
 	}
 	line_colour *= (1.f / float(total_samples));
 
+	// Sample the source image 
 	float image_colour = texture(image_texture, out_uv).x;
 	if (mode == 0)
 	{
 		float difference = line_colour - image_colour;
+
+		// Weigh over-shooting the darkness less
 		if (difference < 0.f)
 		{
 			difference = pow(-difference, 2.f);
