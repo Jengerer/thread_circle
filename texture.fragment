@@ -38,7 +38,7 @@ void main(void)
 		// Weigh over-shooting the darkness less
 		if (difference < 0.f)
 		{
-			difference = pow(-difference * 0.75f, 4.f);
+			difference = pow(-difference * 0.75f, 2.f);
 		}
 		colour = vec4(vec3(difference), 1.f);
 	}

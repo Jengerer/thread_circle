@@ -119,9 +119,8 @@ int main(int argc, char** argv)
 			}
 		}
 
-		if ((generation % LOG_FREQUENCY) == 0)
+		if ((generation++ % LOG_FREQUENCY) == 0)
 		{
-			++generation;
 			printf("Generation #%d:\n", generation);
 			for (size_t i = 0; i < FITTEST_COUNT; ++i)
 			{
