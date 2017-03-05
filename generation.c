@@ -19,12 +19,15 @@ generation_t create_generation(void)
 	generation_t result;
 
 	// Fill random line
-	const size_t buffer_size = LINES_INDEX_COUNT * sizeof(GLuint);
-	GLuint* indices = (GLuint*)malloc(buffer_size);
+	const size_t index_buffer_size = LINES_INDEX_COUNT * sizeof(GLuint);
+	GLuint* indices = (GLuint*)malloc(index_buffer_size);
 	indices[0] = (GLuint)(rand() % POINT_COUNT);
 	indices[1] = (GLuint)(rand() % POINT_COUNT);
 	result.indices = indices;
 	result.index_count = 2;
+	const size_t score_buffer_size = APPLICATION_PIXEL_COUNT * sizeof(GLfloat);
+	GLfloat* score_buffer = (GLfloat*)malloc(score_buffer_size);
+	result.score_buffer = score_buffer;
 	result.score = FLT_MAX;
 
 	return result;
@@ -39,6 +42,13 @@ void destroy_generation(generation_t* generation)
 		generation->indices = NULL;
 	}
 	generation->index_count = 0;
+
+	GLfloat* score_buffer = generation->score_buffer;
+	if (score_buffer != NULL)
+	{
+		free(score_buffer);
+		generation->score_buffer = NULL;
+	}
 	generation->score = FLT_MAX;
 }
 
@@ -129,5 +139,18 @@ int compare_generations(const void* a, const void* b)
 	{
 		return 1;
 	}
+}
+
+void* compute_score(void* generation_pointer)
+{
+	generation_t* generation = (generation_t*)generation_pointer;
+	GLfloat* score_buffer = generation->score_buffer;
+	GLfloat sum = 0.f;
+	for (size_t i = 0; i < APPLICATION_PIXEL_COUNT; ++i)
+	{
+		sum += score_buffer[i];
+	}
+	generation->score = sum;
+	return NULL;
 }
 

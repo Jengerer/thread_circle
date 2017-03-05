@@ -1,14 +1,16 @@
-#include <time.h>
 #include "generation.h"
 #include "graphics.h"
 #include "shared.h"
 #include "vector2d.h"
+#include <assert.h>
+#include <time.h>
 
-#define SAMPLE_RADIUS 2
+#define SAMPLE_RADIUS 4
 #define LOG_FREQUENCY 1000
 #define FITTEST_COUNT 5
 #define OFFSPRING_PER_FITTEST 5
 #define CANDIDATE_COUNT (FITTEST_COUNT + (FITTEST_COUNT * OFFSPRING_PER_FITTEST))
+#define LAST_CANDIDATE (CANDIDATE_COUNT - 1)
 
 int main(int argc, char** argv)
 {
@@ -22,11 +24,6 @@ int main(int argc, char** argv)
 		pause();
 		return -1;
 	}
-
-	// Prepare buffer for pixel differences
-	const size_t difference_pixel_count = APPLICATION_WIDTH * APPLICATION_HEIGHT;
-	const size_t difference_buffer_size = difference_pixel_count * sizeof(GLfloat);
-	GLfloat* difference_pixels = (GLfloat*)malloc(difference_buffer_size);
 
 	// Vertices of line points
 	vector2d_t line_vertices[POINT_COUNT];
@@ -214,14 +211,28 @@ int main(int argc, char** argv)
 				NULL
 			);
 
-			// Now calculate difference sum
-			GLfloat sum = 0.f;
-			glReadPixels(0, 0, APPLICATION_WIDTH, APPLICATION_HEIGHT, GL_RED, GL_FLOAT, difference_pixels);
-			for (size_t j = 0; j < difference_pixel_count; ++j)
+			// Read buffer and start compute job
+			GLfloat* score_buffer = candidate->score_buffer;
+			glReadPixels(0, 0, APPLICATION_WIDTH, APPLICATION_HEIGHT, GL_RED, GL_FLOAT, score_buffer);
+			if (i != LAST_CANDIDATE)
 			{
-				sum += difference_pixels[j];
+				pthread_t* thread = &candidate->score_thread;
+				const int result = pthread_create(thread, NULL, &compute_score, candidate);
+				assert(result == 0);
 			}
-			candidate->score = sum;
+			else
+			{
+				// Compute our score on main thread
+				compute_score(candidate);
+
+				// Now wait for others
+				for (size_t j = 0; j < LAST_CANDIDATE; ++j)
+				{
+					generation_t* other = &candidates[j];
+					const int result = pthread_join(other->score_thread, NULL);
+					assert(result == 0);
+				}
+			}
 
 			// Draw best
 			if (i == 0)
