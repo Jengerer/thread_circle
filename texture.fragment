@@ -29,9 +29,9 @@ void main(void)
 	}
 	line_colour *= (1.f / float(total_samples));
 
+	float image_colour = texture(image_texture, out_uv).x;
 	if (mode == 0)
 	{
-		float image_colour = texture(image_texture, out_uv).x;
 		float difference = line_colour - image_colour;
 		if (difference < 0.f)
 		{
@@ -43,8 +43,12 @@ void main(void)
 	{
 		colour = vec4(vec3(line_colour), 1.f);
 	}
-	else
+	else if (mode == 2)
 	{
 		colour = vec4(vec3(line_texture_colour), 1.f);
+	}
+	else
+	{
+		colour = vec4(vec3(image_colour), 1.f);
 	}
 }

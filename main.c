@@ -18,6 +18,7 @@
 #define LINES 1000
 #define LINES_INDEX_COUNT (LINES * 2)
 
+#define SAMPLE_RADIUS 10
 #define LOG_FREQUENCY 1000
 
 int main(int argc, char** argv)
@@ -35,8 +36,8 @@ int main(int argc, char** argv)
 
 	// Prepare buffer for pixel differences
 	const size_t difference_pixel_count = APPLICATION_WIDTH * APPLICATION_HEIGHT;
-	const size_t difference_buffer_size = difference_pixel_count * sizeof(float);
-	float* difference_pixels = (float*)malloc(difference_buffer_size);
+	const size_t difference_buffer_size = difference_pixel_count * sizeof(GLfloat);
+	GLfloat* difference_pixels = (GLfloat*)malloc(difference_buffer_size);
 
 	// Vertices of line points
 	vector2d_t line_vertices[POINT_COUNT];
@@ -231,7 +232,6 @@ int main(int argc, char** argv)
 		// Set main buffer back
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 		glViewport(0, 0, APPLICATION_WIDTH, APPLICATION_HEIGHT);
-		glClear(GL_COLOR_BUFFER_BIT);
 
 		// Bind vertex and index buffer back
 		glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
@@ -255,7 +255,7 @@ int main(int argc, char** argv)
 
 		// Draw the quad
 		set_mode(&graphics_context.texture_material, 0);
-		set_sample_radius(&graphics_context.texture_material, 1.f / TEXTURE_WIDTH);
+		set_sample_radius(&graphics_context.texture_material, (float)SAMPLE_RADIUS / (float)TEXTURE_WIDTH);
 		GLsizei index_count = sizeof(indices) / sizeof(GLuint);
 		glDrawElements
 		(
@@ -266,7 +266,7 @@ int main(int argc, char** argv)
 		);
 
 		// Now calculate difference sum
-		float sum = 0.f;
+		GLfloat sum = 0.f;
 		glReadPixels(0, 0, APPLICATION_WIDTH, APPLICATION_HEIGHT, GL_RED, GL_FLOAT, difference_pixels);
 		for (size_t i = 0; i < difference_pixel_count; ++i)
 		{
