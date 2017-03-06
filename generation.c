@@ -29,6 +29,7 @@ generation_t create_generation(void)
 	GLfloat* score_buffer = (GLfloat*)malloc(score_buffer_size);
 	result.score_buffer = score_buffer;
 	result.score = FLT_MAX;
+	result.score_thread = NULL;
 
 	return result;
 }
@@ -81,7 +82,7 @@ void mutate_generation(const generation_t* source, generation_t* destination)
 				const GLuint new_index = (GLuint)(rand() % POINT_COUNT);
 				const size_t insert_before = (size_t)(rand() % (index_count + 1));
 				GLuint copy_value = new_index;
-				for (GLsizei i = insert_before; i < index_count + 1; ++i)
+				for (size_t i = insert_before; i < index_count + 1; ++i)
 				{
 					GLuint saved = indices[i];
 					indices[i] = copy_value;
@@ -100,7 +101,7 @@ void mutate_generation(const generation_t* source, generation_t* destination)
 			{
 				// Shift all to the left after
 				const size_t removed_index = (size_t)(rand() % index_count);
-				for (GLsizei i = removed_index + 1; i < index_count; ++i)
+				for (size_t i = removed_index + 1; i < index_count; ++i)
 				{
 					indices[i - 1] = indices[i];
 					assert(indices[i - 1] < POINT_COUNT);
@@ -141,7 +142,34 @@ int compare_generations(const void* a, const void* b)
 	}
 }
 
+void start_score_thread(generation_t* generation)
+{
+#if defined(WIN32)
+	HANDLE thread_handle = CreateThread(NULL, 0, &compute_score, generation, 0, NULL);
+	assert(thread_handle != NULL);
+	generation->score_thread = thread_handle;
+#else
+	pthread_t* thread = &generation->score_thread;
+	const int result = pthread_create(thread, NULL, &compute_score, candidate);
+#endif
+}
+
+void join_score_thread(generation_t* generation)
+{
+#if defined(WIN32)
+	HANDLE thread_handle = generation->score_thread;
+	WaitForSingleObject(thread_handle, INFINITE);
+#else
+	const int result = pthread_join(other->score_thread, NULL);
+	assert(result);
+#endif
+}
+
+#if defined(WIN32)
+DWORD WINAPI compute_score(LPVOID generation_pointer)
+#else
 void* compute_score(void* generation_pointer)
+#endif
 {
 	generation_t* generation = (generation_t*)generation_pointer;
 	GLfloat* score_buffer = generation->score_buffer;
@@ -151,6 +179,11 @@ void* compute_score(void* generation_pointer)
 		sum += score_buffer[i];
 	}
 	generation->score = sum;
+
+#if defined(WIN32)
+	return 0;
+#else
 	return NULL;
+#endif
 }
 

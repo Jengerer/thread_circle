@@ -3,6 +3,7 @@
 #include "shared.h"
 #include "vector2d.h"
 #include <assert.h>
+#include <stdio.h>
 #include <time.h>
 
 int main(int argc, char** argv)
@@ -221,9 +222,7 @@ int main(int argc, char** argv)
 			glReadPixels(0, 0, APPLICATION_WIDTH, APPLICATION_HEIGHT, GL_RED, GL_FLOAT, score_buffer);
 			if (i != LAST_CANDIDATE)
 			{
-				pthread_t* thread = &candidate->score_thread;
-				const int result = pthread_create(thread, NULL, &compute_score, candidate);
-				assert(result == 0);
+				start_score_thread(candidate);
 			}
 			else
 			{
@@ -234,8 +233,7 @@ int main(int argc, char** argv)
 				for (size_t j = 0; j < LAST_CANDIDATE; ++j)
 				{
 					generation_t* other = &candidates[j];
-					const int result = pthread_join(other->score_thread, NULL);
-					assert(result == 0);
+					join_score_thread(other);
 				}
 			}
 

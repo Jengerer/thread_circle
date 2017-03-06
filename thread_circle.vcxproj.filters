@@ -56,6 +56,12 @@
     <ClCompile Include="matrix3d.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="generation.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="shared.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="line.fragment">
